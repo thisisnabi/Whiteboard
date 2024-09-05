@@ -1,0 +1,101 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<canvas id="whiteboard" width="800" height="600"></canvas>
+  
+@section Styles
+{
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #fff;
+        }
+    </style>
+}
+
+@section Scripts
+{
+    <script>
+
+        var connection = new signalR.HubConnectionBuilder()
+                        .withUrl("/board").build();
+ 
+        connection.start().then(function () {
+                   console.log("Connected to board!"); 
+        }).catch(function (err) {
+            return console.error(err.toString());
+        });
+
+
+        const canvas = document.getElementById('whiteboard');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+        let x1 = 0;
+        let y1 = 0;
+
+        function startPosition(e) {
+            painting = true;
+            x1 = e.clientX - canvas.offsetLeft;
+            y1 = e.clientY - canvas.offsetTop;
+        }
+
+        function endPosition() {
+            painting = false;
+            ctx.beginPath(); 
+        }
+        function draw(e) {
+            if (!painting) return;
+
+            const x = e.clientX - canvas.offsetLeft;
+            const y = e.clientY - canvas.offsetTop;
+
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000000';
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            connection.invoke("SendDrawAction", x1, y1, x, y)
+                .catch(function (err) {
+                    return console.error(err.toString());
+                });
+
+            x1 = x;
+            y1 = y;
+        }
+         
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+
+         
+        connection.on("GetDrawAction", (x1, y1, x2,y2) => {
+
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000000';
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.closePath();
+
+        })
+ 
+    </script>
+}
