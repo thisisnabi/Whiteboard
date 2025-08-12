@@ -1,0 +1,169 @@
+﻿@page
+@model IndexModel
+@{
+	ViewData["Title"] = "Board";
+}
+
+<div class="wb-board">
+	<canvas id="whiteboard" style="width: 900px; height: 600px;"></canvas>
+
+	<button id="wbToggle" class="wb-fab" aria-label="Tools">
+		<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+			<path d="M12 3a9 9 0 0 0 0 18h1.5a2.5 2.5 0 0 0 0-5H12a1 1 0 1 1 0-2h3a4 4 0 0 0 0-8h-1a9 9 0 0 0-2-3Z" fill="currentColor" />
+		</svg>
+	</button>
+
+	<div id="wbTools" class="wb-tools wb-hidden">
+		<div class="wb-row">
+			<span class="wb-label">Color</span>
+			<div class="wb-swatches" id="wbSwatches">
+			</div>
+		</div>
+		<div class="wb-row">
+			<span class="wb-label">Size</span>
+			<input id="penSize" type="range" min="1" max="20" value="5" />
+			<span id="penSizeVal" class="wb-size">5px</span>
+		</div>
+		<div class="wb-row wb-actions">
+			<button id="wbEraser" class="wb-btn">Eraser</button>
+		</div>
+	</div>
+</div>
+
+
+@section Styles {
+	<style>
+		html, body {
+			height: 100%;
+		}
+
+		body {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			margin: 0;
+			background: #f5f5f5;
+		}
+
+		canvas {
+			border: 2px solid #000;
+			background: #fff;
+			touch-action: none;
+		}
+	</style>
+
+	<link href="~/css/site.css" rel="stylesheet" />
+}
+
+@section Scripts {
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
+    <script>
+        (() => {
+            const canvas = document.getElementById("whiteboard");
+            const ctx = canvas.getContext("2d");
+            const dpr = window.devicePixelRatio || 1;
+            function resizeCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.round(rect.width * dpr);
+                canvas.height = Math.round(rect.height * dpr);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(dpr, dpr);
+            }
+            resizeCanvas();
+            window.addEventListener("resize", resizeCanvas);
+            let color = "#000000";
+            let thickness = 5;
+            function getNormPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) / rect.width;
+                const y = (e.clientY - rect.top) / rect.height;
+                return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+            }
+            function denorm(n) {
+                const rect = canvas.getBoundingClientRect();
+                return { x: n.x * rect.width, y: n.y * rect.height };
+            }
+            let drawing = false;
+            let last = null;
+            function drawSegment(p1, p2, thick, col) {
+                ctx.lineWidth = thick;
+                ctx.lineCap = "round";
+                ctx.strokeStyle = col;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            const connection = new signalR.HubConnectionBuilder().withUrl("/board").withAutomaticReconnect().build();
+            connection.on("draw", (s) => {
+                const p1 = denorm({ x: s.x1, y: s.y1 });
+                const p2 = denorm({ x: s.x2, y: s.y2 });
+                drawSegment(p1, p2, s.thickness, s.color);
+            });
+            connection.start().catch((err) => console.error(err));
+            canvas.addEventListener("pointerdown", (e) => {
+                canvas.setPointerCapture(e.pointerId);
+                drawing = true;
+                last = getNormPos(e);
+                e.preventDefault();
+            });
+            canvas.addEventListener("pointermove", (e) => {
+                if (!drawing) return;
+                const cur = getNormPos(e);
+                drawSegment(denorm(last), denorm(cur), thickness, color);
+                connection.invoke("DrawAsync", { x1: last.x, y1: last.y, x2: cur.x, y2: cur.y, thickness: thickness, color: color }).catch((err) => console.error(err));
+                last = cur;
+            });
+            function endStroke() {
+                if (!drawing) return;
+                drawing = false;
+                last = null;
+            }
+            canvas.addEventListener("pointerup", endStroke);
+            canvas.addEventListener("pointercancel", endStroke);
+            canvas.addEventListener("pointerleave", endStroke);
+            const wbToggle = document.getElementById("wbToggle");
+            const wbTools = document.getElementById("wbTools");
+            const wbSwatches = document.getElementById("wbSwatches");
+            const penSize = document.getElementById("penSize");
+            const penSizeVal = document.getElementById("penSizeVal");
+            const wbEraser = document.getElementById("wbEraser");
+            const SWATCHES = ["#000000", "#ff0000", "#00cc44", "#0077ff", "#ff9900", "#8a2be2", "#00cfd5", "#ff1493", "#795548", "#6d6d6d", "#ffffff", "#8BC34A", "#E91E63", "#2196F3", "#FFC107", "#9C27B0"];
+            let selectedColor = color;
+            penSize.value = thickness;
+            penSizeVal.textContent = thickness + "px";
+            SWATCHES.forEach((c) => {
+                const b = document.createElement("button");
+                b.className = "wb-swatch";
+                b.style.background = c;
+                b.dataset.color = c;
+                if (c.toLowerCase() === "#ffffff") b.style.boxShadow = "0 0 0 1px rgba(0,0,0,.35)";
+                if (c.toLowerCase() === selectedColor.toLowerCase()) b.dataset.selected = "true";
+                b.addEventListener("click", () => {
+                    selectedColor = c;
+                    color = c;
+                    document.querySelectorAll(".wb-swatch").forEach((x) => (x.dataset.selected = "false"));
+                    b.dataset.selected = "true";
+                });
+                wbSwatches.appendChild(b);
+            });
+            penSize.addEventListener("input", (e) => {
+                thickness = parseInt(e.target.value, 10);
+                penSizeVal.textContent = thickness + "px";
+            });
+            wbEraser.addEventListener("click", () => {
+                selectedColor = "#ffffff";
+                color = "#ffffff";
+                document.querySelectorAll(".wb-swatch").forEach((x) => (x.dataset.selected = "false"));
+                const whiteBtn = Array.from(document.querySelectorAll(".wb-swatch")).find((x) => x.dataset.color.toLowerCase() === "#ffffff");
+                if (whiteBtn) whiteBtn.dataset.selected = "true";
+            });
+            wbToggle.addEventListener("click", () => wbTools.classList.toggle("wb-hidden"));
+            document.addEventListener("click", (e) => {
+                if (!wbTools.contains(e.target) && !wbToggle.contains(e.target)) wbTools.classList.add("wb-hidden");
+            });
+        })();
+    </script>
+}
+
