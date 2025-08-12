@@ -2,6 +2,108 @@ html {
   font-size: 14px;
 }
 
+.wb-board {
+    position: relative;
+    display: inline-block;
+}
+
+.wb-fab {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 999px;
+    background: #111;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(0,0,0,.25);
+}
+
+.wb-tools {
+    position: absolute;
+    top: 64px;
+    left: 12px;
+    width: 240px;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(6px);
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 12px 28px rgba(0,0,0,.22);
+}
+
+.wb-hidden {
+    display: none;
+}
+
+.wb-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.wb-label {
+    width: 46px;
+    font: 600 12px/1.2 system-ui, sans-serif;
+    color: #222;
+}
+
+.wb-swatches {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    flex: 1;
+}
+
+.wb-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.18);
+    cursor: pointer;
+}
+
+    .wb-swatch[data-selected="true"] {
+        outline: 2px solid #111;
+        outline-offset: 1px;
+    }
+
+.wb-size {
+    min-width: 36px;
+    text-align: right;
+    font: 500 12px system-ui;
+    color: #333;
+}
+
+.wb-actions {
+    justify-content: flex-end;
+}
+
+.wb-btn {
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background: #f7f7f7;
+    cursor: pointer;
+}
+
+    .wb-btn:hover {
+        background: #efefef;
+    }
+
+canvas {
+    border: 2px solid #000;
+    background: #fff;
+    touch-action: none;
+}
+
+
 @media (min-width: 768px) {
   html {
     font-size: 16px;
